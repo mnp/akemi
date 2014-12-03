@@ -1,11 +1,22 @@
+#define FUSE_USE_VERSION 26
+
 #include <stdlib.h>
 #include <err.h>
 #include <xcb/xcb.h>
+#include <fuse.h>
 
 static void xcb_init(xcb_connection_t *conn, xcb_screen_t *scrn);
 static void xcb_cleanup(xcb_connection_t *conn);
 
-static  xcb_connection_t *conn;
+static struct fuse_operations akemi_oper = 
+{
+	.getattr = NULL,
+	.readdir = NULL,
+	.open = NULL,
+	.read = NULL,
+};
+
+static xcb_connection_t *conn;
 static xcb_screen_t *scrn;
 
 static void xcb_init(xcb_connection_t *conn, xcb_screen_t *scrn)
@@ -30,5 +41,5 @@ int main(int argc, char** argv)
 	xcb_init(conn, scrn);
 	xcb_cleanup(conn);
 
-	return 0;
+	return fuse_main(argc, argv, &akemi_oper, NULL);
 }
