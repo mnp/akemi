@@ -1,8 +1,12 @@
+#include <stdlib.h>
 #include <err.h>
 #include <xcb/xcb.h>
 
 static void xcb_init(xcb_connection_t *conn, xcb_screen_t *scrn);
 static void xcb_cleanup(xcb_connection_t *conn);
+
+static  xcb_connection_t *conn;
+static xcb_screen_t *scrn;
 
 static void xcb_init(xcb_connection_t *conn, xcb_screen_t *scrn)
 {
@@ -23,9 +27,6 @@ static void xcb_cleanup(xcb_connection_t *conn)
 
 int main(int argc, char** argv)
 {
-	xcb_connection_t *conn;
-	xcb_screen_t *scrn;
-
 	xcb_init(conn, scrn);
 	xcb_cleanup(conn);
 
