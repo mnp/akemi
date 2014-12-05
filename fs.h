@@ -1,6 +1,7 @@
 #ifndef FS_H
 #define FS_H
-#define FUSE_USE_VERSION 26
-#include <fuse.h>
+
+int fuse_init(int argc, char **argv);
+void fuse_cleanup();
 
 #endif
