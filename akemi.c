@@ -1,5 +1,3 @@
-#include <stdlib.h>
-#include <stdio.h>
 #include "fs.h"
 #include "win.h"
 
