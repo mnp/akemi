@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include <xcb/xcb.h>
 #include <err.h>
 #include "win.h"
