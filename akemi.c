@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include "akemi.h"
 #include "fs.h"
 #include "win.h"
