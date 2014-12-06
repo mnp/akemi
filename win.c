@@ -5,12 +5,37 @@
 #include "win.h"
 #include "akemi.h"
 
-#define WID_STRING_LENGTH 10
-
 static xcb_connection_t *conn;
 static xcb_screen_t *scrn;
 
-char **list_windows()
+int exists(int wid)
+{
+	xcb_get_window_attributes_cookie_t attr_c = xcb_get_window_attributes(conn, wid);
+	xcb_get_window_attributes_reply_t *attr_r = xcb_get_window_attributes_reply(conn, attr_c, NULL);
+	
+	if(attr_r == NULL)
+		return 0;
+
+	free(attr_r);
+	return 1;
+}
+
+int hidden(int wid)
+{
+	xcb_get_window_attributes_cookie_t attr_c = xcb_get_window_attributes(conn, wid);
+	xcb_get_window_attributes_reply_t *attr_r = xcb_get_window_attributes_reply(conn, attr_c, NULL);
+
+	if(attr_r == NULL)
+		return 0;
+
+	int map_state = attr_r->map_state;
+	int override_redirect = attr_r->override_redirect;
+
+	free(attr_r);
+	return (map_state != XCB_MAP_STATE_VIEWABLE) || override_redirect;
+}
+
+int *list_windows()
 {
 	xcb_query_tree_cookie_t tree_c = xcb_query_tree(conn, scrn->root);
 	xcb_query_tree_reply_t *tree_r = xcb_query_tree_reply(conn, tree_c, NULL);
@@ -26,13 +51,13 @@ char **list_windows()
 		errx(1, "Couldn't find the root window's children");
 	}
 
-	char **win_list = malloc(sizeof(char*)*(tree_r->children_len+1));
+	int *win_list = malloc(sizeof(int)*(tree_r->children_len+1));
 	int i;
 	for (i=0; i<tree_r->children_len; i++) {
-		win_list[i] = malloc(sizeof(char[WID_STRING_LENGTH]));
-		sprintf(win_list[i], "0x%08x", xcb_win_list[i]);
+		win_list[i] = xcb_win_list[i];
 	}
-	win_list[tree_r->children_len] = NULL;
+	free(tree_r);
+	win_list[i] = 0;
 	return win_list;
 }
 
