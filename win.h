@@ -4,4 +4,6 @@
 void xcb_init();
 void xcb_cleanup();
 
+char **list_windows();
+
 #endif
