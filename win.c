@@ -7,6 +7,28 @@
 static xcb_connection_t *conn;
 static xcb_screen_t *scrn;
 
+void set_geom(int wid, int width, int height, int x, int y)
+{
+	uint32_t geom[4] = {x, y, width, height};
+	uint32_t mask = XCB_CONFIG_WINDOW_WIDTH 
+		| XCB_CONFIG_WINDOW_HEIGHT 
+		| XCB_CONFIG_WINDOW_X 
+		| XCB_CONFIG_WINDOW_Y;
+	xcb_configure_window(conn, wid, mask, geom);
+	xcb_flush(conn);
+}
+
+void get_geom(int wid, int *width, int *height, int *x, int *y)
+{
+	xcb_get_geometry_cookie_t geom_c = xcb_get_geometry(conn, wid);
+	xcb_get_geometry_reply_t *geom_r = xcb_get_geometry_reply(conn, geom_c, NULL);
+
+	*width = geom_r->width;
+	*height = geom_r->height;
+	*x = geom_r->x;
+	*y = geom_r->y;
+}
+
 int exists(int wid)
 {
 	xcb_get_window_attributes_cookie_t attr_c = xcb_get_window_attributes(conn, wid);

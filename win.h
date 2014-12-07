@@ -8,5 +8,7 @@ void xcb_cleanup();
 int exists(int wid);
 int hidden(int wid);
 int *list_windows();
+void get_geom(int wid, int *width, int *height, int *x, int *y);
+void set_geom(int wid, int widht, int height, int x, int y);
 
 #endif
