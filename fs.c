@@ -45,7 +45,7 @@ static int readdir_win(fuse_fill_dir_t filler, void *buf, int win)
 static int win_getattr(const char *path, struct stat *stbuf)
 {
 	if(strcmp(path, "/geometry")==0){
-		stbuf->st_mode = S_IFREG | 0777;
+		stbuf->st_mode = S_IFREG | 0600;
 		stbuf->st_nlink = 1;
 		stbuf->st_size = (sizeof(char)*19);
 		stbuf->st_uid = getuid();
@@ -60,7 +60,7 @@ static int akemi_getattr(const char *path, struct stat *stbuf)
 {
 	memset(stbuf, 0, sizeof(struct stat));
 	if(strcmp(path, "/") == 0){
-		stbuf->st_mode = S_IFDIR | 0777;
+		stbuf->st_mode = S_IFDIR | 0700;
 		stbuf->st_nlink = 2;
 		return 0;
 	}
@@ -72,7 +72,7 @@ static int akemi_getattr(const char *path, struct stat *stbuf)
 		sscanf((path+3), "%x", &wid);
 		if(!exists(wid))
 			return -ENOENT;
-		stbuf->st_mode = S_IFDIR | 0777;
+		stbuf->st_mode = S_IFDIR | 0700;
 		stbuf->st_nlink = 2;
 		return 0;
 	}
