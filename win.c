@@ -7,33 +7,27 @@
 static xcb_connection_t *conn;
 static xcb_screen_t *scrn;
 
-void set_geom(int wid, int width, int height, int x, int y)
+int focused()
 {
-	uint32_t geom[4] = {x, y, width, height};
-	uint32_t mask = XCB_CONFIG_WINDOW_WIDTH 
-		| XCB_CONFIG_WINDOW_HEIGHT 
-		| XCB_CONFIG_WINDOW_X 
-		| XCB_CONFIG_WINDOW_Y;
-	xcb_configure_window(conn, wid, mask, geom);
-	xcb_flush(conn);
-}
+	xcb_get_input_focus_cookie_t focus_c;
+	xcb_get_input_focus_reply_t *focus_r;
 
-void get_geom(int wid, int *width, int *height, int *x, int *y)
-{
-	xcb_get_geometry_cookie_t geom_c = xcb_get_geometry(conn, wid);
-	xcb_get_geometry_reply_t *geom_r = xcb_get_geometry_reply(conn, geom_c, NULL);
+	focus_c = xcb_get_input_focus(conn);
+	focus_r = xcb_get_input_focus_reply(conn, focus_c, NULL);
 
-	*width = geom_r->width;
-	*height = geom_r->height;
-	*x = geom_r->x;
-	*y = geom_r->y;
+	if(focus_r == NULL)
+		return -1;
+
+	int focused = focus_r->focus;
+	free(focus_r);
+	return focused;
 }
 
 int exists(int wid)
 {
 	xcb_get_window_attributes_cookie_t attr_c = xcb_get_window_attributes(conn, wid);
 	xcb_get_window_attributes_reply_t *attr_r = xcb_get_window_attributes_reply(conn, attr_c, NULL);
-	
+
 	if(attr_r == NULL)
 		return 0;
 
@@ -41,19 +35,34 @@ int exists(int wid)
 	return 1;
 }
 
-int hidden(int wid)
+int set_geom(int wid, int width, int height, int x, int y)
 {
-	xcb_get_window_attributes_cookie_t attr_c = xcb_get_window_attributes(conn, wid);
-	xcb_get_window_attributes_reply_t *attr_r = xcb_get_window_attributes_reply(conn, attr_c, NULL);
+	if(!exists(wid))
+		return -1;
 
-	if(attr_r == NULL)
-		return 0;
+	uint32_t geom[4] = {x, y, width, height};
+	uint32_t mask = XCB_CONFIG_WINDOW_WIDTH 
+		| XCB_CONFIG_WINDOW_HEIGHT 
+		| XCB_CONFIG_WINDOW_X 
+		| XCB_CONFIG_WINDOW_Y;
+	xcb_configure_window(conn, wid, mask, geom);
+	xcb_flush(conn);
+	return 0;
+}
 
-	int map_state = attr_r->map_state;
-	int override_redirect = attr_r->override_redirect;
+int get_geom(int wid, int *width, int *height, int *x, int *y)
+{
+	if(!exists(wid))
+		return -1;
 
-	free(attr_r);
-	return (map_state != XCB_MAP_STATE_VIEWABLE) || override_redirect;
+	xcb_get_geometry_cookie_t geom_c = xcb_get_geometry(conn, wid);
+	xcb_get_geometry_reply_t *geom_r = xcb_get_geometry_reply(conn, geom_c, NULL);
+
+	*width = geom_r->width;
+	*height = geom_r->height;
+	*x = geom_r->x;
+	*y = geom_r->y;
+	return 0;
 }
 
 int *list_windows()

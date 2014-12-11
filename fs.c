@@ -9,51 +9,73 @@
 #include "akemi.h"
 #include "fs.h"
 #include "win.h"
+#include "win_oper.h"
 
-static int readdir_root (fuse_fill_dir_t filler, void *buf)
+struct win_oper
 {
-    filler(buf, ".", NULL, 0); 
-    filler(buf, "..", NULL, 0); 
+    char *path;
+	int (*getattr)(int wid, struct stat *stbuf);
+    int (*read)(int wid, char *buf, size_t size, off_t offset);
+    int (*write)(int wid, const char *buf, size_t size, off_t offset);
+};
 
-    int *wins = list_windows();
-    int i;
-    for(i=0; wins[i]; i++){
-        int win = wins[i];
+static const struct win_oper akemi_win_oper[] = {
+	{"", win_getattr, NULL, NULL},
+	{"/border", border_getattr, NULL, NULL},
+		{"/border/color", border_color_getattr, border_color_read, border_color_write},
+		{"/border/width", border_width_getattr, border_width_read, border_width_write},
+	{"/geometry", geometry_getattr, NULL, NULL},
+		{"/geometry/width", geometry_width_getattr, geometry_width_read, geometry_width_write},
+		{"/geometry/height", geometry_height_getattr, geometry_height_read, geometry_height_write},
+		{"/geometry/x", geometry_x_getattr, geometry_x_read, geometry_x_write},
+		{"/geometry/y", geometry_y_getattr, geometry_y_read, geometry_y_write},
+	{"/mapstate", mapstate_getattr, mapstate_read, mapstate_write},
+	{"/ignored", ignored_getattr, ignored_read, ignored_write},
+	{"/stack", stack_getattr, NULL, stack_write},
+	{"/title", title_getattr, title_read, NULL},
+	{"/class", class_getattr, class_read, NULL},
+};
 
-        char *win_string;
-        win_string = malloc(sizeof(char)*(WID_STRING_LENGTH));
+static int get_winid(const char *path)
+{
+	int wid = 0;
+	if(strncmp(path, "/0x", 3) == 0)
+		sscanf(path, "/0x%08x", &wid);
 
-        sprintf(win_string, "0x%08x", win);
-        filler(buf, win_string, NULL, 0); 
+	if(strncmp(path, "/focused", 8) == 0)
+		wid = focused();
 
-        free(win_string);
-    }   
-    free(wins);
-	return 0;
+	if(!exists(wid))
+		return -1;
+
+	return wid;
 }
 
-static int readdir_win(fuse_fill_dir_t filler, void *buf, int win)
+const char *get_winpath(const char *path)
 {
-	if(!exists(win))
-		return -ENOENT;
-	filler(buf, ".", NULL, 0);
-	filler(buf, "..", NULL, 0);
-	filler(buf, "geometry", NULL, 0);
-	return 0;
+	const char *winpath = strchr(path+1, '/');
+	if(winpath==NULL)
+		winpath="";
+	return winpath;
 }
 
-static int win_getattr(const char *path, struct stat *stbuf)
+static int valid_path(const char *path)
 {
-	if(strcmp(path, "/geometry")==0){
-		stbuf->st_mode = S_IFREG | 0600;
-		stbuf->st_nlink = 1;
-		stbuf->st_size = (sizeof(char)*19);
-		stbuf->st_uid = getuid();
-		stbuf->st_gid = getgid();
-		stbuf->st_atime = stbuf->st_mtime = stbuf->st_ctime = time(NULL);
+	if(strcmp(path, "/") == 0)
+		return 1;
+
+	if(get_winid(path) == -1)
 		return 0;
+
+	const char *winpath = get_winpath(path);
+	int i;
+	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
+		if(strcmp(winpath, akemi_win_oper[i].path) == 0){
+			return 1;
+		}
 	}
-	return -ENOENT;
+
+	return 0;
 }
 
 static int akemi_getattr(const char *path, struct stat *stbuf)
@@ -64,17 +86,18 @@ static int akemi_getattr(const char *path, struct stat *stbuf)
 		stbuf->st_nlink = 2;
 		return 0;
 	}
-	if(strncmp(path, "/0x", 3) == 0){
-		if(strlen(path)>(WID_STRING_LENGTH+3)){
-			return win_getattr(path+WID_STRING_LENGTH+1, stbuf);
+
+	int wid = get_winid(path);
+	if(wid == -1)
+		return -ENOENT;
+
+	const char *winpath = get_winpath(path);
+
+	int i;
+	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
+		if(strcmp(winpath, akemi_win_oper[i].path) == 0){
+			return akemi_win_oper[i].getattr(wid, stbuf);
 		}
-		int wid;
-		sscanf((path+3), "%x", &wid);
-		if(!exists(wid))
-			return -ENOENT;
-		stbuf->st_mode = S_IFDIR | 0700;
-		stbuf->st_nlink = 2;
-		return 0;
 	}
 	return -ENOENT;
 }
@@ -83,21 +106,51 @@ static int akemi_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 {
 	(void) offset;
 	(void) fi;
-	if (strcmp(path, "/") == 0)
-		return readdir_root(filler, buf);
-
-	if(strncmp(path, "/0x", 3) == 0){
-		int wid;
-		sscanf((path+3), "%x", &wid);
-		return readdir_win(filler, buf, wid);
-	}
-	else
+	if(!valid_path(path))
 		return -ENOENT;
+
+	filler(buf, ".", NULL, 0);
+	filler(buf, "..", NULL, 0);
+	if(strcmp(path, "/") == 0){
+		filler(buf, "focused", NULL, 0);
+
+		int *wins = list_windows();
+		int i;
+		for(i=0; wins[i]; i++){
+			int win = wins[i];
+
+			char *win_string;
+			win_string = malloc(sizeof(char)*(WID_STRING_LENGTH));
+
+			sprintf(win_string, "0x%08x", win);
+			filler(buf, win_string, NULL, 0); 
+
+			free(win_string);
+		}
+		free(wins);
+		return 0;
+	}
+
+	const char *winpath = get_winpath(path);
+
+	int dir = 0;
+	int i;
+	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
+		if((strncmp(winpath, akemi_win_oper[i].path, strlen(winpath)) == 0) 
+				&& (strlen(akemi_win_oper[i].path) > strlen(winpath))
+				&& (strchr(akemi_win_oper[i].path+strlen(winpath)+1, '/') == NULL)){
+			dir = 1;
+			filler(buf, akemi_win_oper[i].path+strlen(winpath)+1, NULL, 0);
+		}
+	}
+	if(!dir)
+		return -ENOTDIR;
+	return 0;
 }
 
 static int akemi_open(const char *path, struct fuse_file_info *fi)
 {
-	if (strcmp(path+WID_STRING_LENGTH+1, "/geometry") != 0)
+	if (strcmp(path+WID_STRING_LENGTH, "/geometry") != 0)
 		return -ENOENT;
 	return 0;
 }
