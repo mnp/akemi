@@ -20,20 +20,20 @@ struct win_oper
 };
 
 static const struct win_oper akemi_win_oper[] = {
-	{"", win_getattr, NULL, NULL},
-	{"/border", border_getattr, NULL, NULL},
+	{"", win_getattr, dir_read, dir_write},
+	{"/border", border_getattr, dir_read, dir_write},
 		{"/border/color", border_color_getattr, border_color_read, border_color_write},
 		{"/border/width", border_width_getattr, border_width_read, border_width_write},
-	{"/geometry", geometry_getattr, NULL, NULL},
+	{"/geometry", geometry_getattr, dir_read, dir_write},
 		{"/geometry/width", geometry_width_getattr, geometry_width_read, geometry_width_write},
 		{"/geometry/height", geometry_height_getattr, geometry_height_read, geometry_height_write},
 		{"/geometry/x", geometry_x_getattr, geometry_x_read, geometry_x_write},
 		{"/geometry/y", geometry_y_getattr, geometry_y_read, geometry_y_write},
 	{"/mapstate", mapstate_getattr, mapstate_read, mapstate_write},
 	{"/ignored", ignored_getattr, ignored_read, ignored_write},
-	{"/stack", stack_getattr, NULL, stack_write},
-	{"/title", title_getattr, title_read, NULL},
-	{"/class", class_getattr, class_read, NULL},
+	{"/stack", stack_getattr, stack_read, stack_write},
+	{"/title", title_getattr, title_read, title_write},
+	{"/class", class_getattr, class_read, class_write},
 };
 
 static int get_winid(const char *path)
@@ -51,7 +51,7 @@ static int get_winid(const char *path)
 	return wid;
 }
 
-const char *get_winpath(const char *path)
+static const char *get_winpath(const char *path)
 {
 	const char *winpath = strchr(path+1, '/');
 	if(winpath==NULL)
@@ -88,9 +88,9 @@ static int akemi_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 	(void) offset;
 	(void) fi;
 
-	filler(buf, ".", NULL, 0);
-	filler(buf, "..", NULL, 0);
 	if(strcmp(path, "/") == 0){
+		filler(buf, ".", NULL, 0);
+		filler(buf, "..", NULL, 0);
 		filler(buf, "focused", NULL, 0);
 
 		int *wins = list_windows();
@@ -111,15 +111,27 @@ static int akemi_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 	}
 
 	const char *winpath = get_winpath(path);
-
+	
+	int exists, dir = 0;
 	int i;
 	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
+		if(strcmp(winpath, akemi_win_oper[i].path) == 0)
+			exists = 1;
 		if((strncmp(winpath, akemi_win_oper[i].path, strlen(winpath)) == 0) 
 				&& (strlen(akemi_win_oper[i].path) > strlen(winpath))
 				&& (strchr(akemi_win_oper[i].path+strlen(winpath)+1, '/') == NULL)){
+			dir = 1;
 			filler(buf, akemi_win_oper[i].path+strlen(winpath)+1, NULL, 0);
 		}
 	}
+	if(dir){
+		filler(buf, ".", NULL, 0);
+		filler(buf, "..", NULL, 0);
+	}
+	else
+		return -ENOTDIR;
+	if(!exists)
+		return -ENOENT;
 	return 0;
 }
 
@@ -130,29 +142,28 @@ static int akemi_open(const char *path, struct fuse_file_info *fi)
 
 static int akemi_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
-	int wid;
-	sscanf((path+3), "%x", &wid);
-	char *geom = malloc(sizeof(char)*20);
-	int width, height, x, y;
-	get_geom(wid, &width, &height, &x, &y);
-	sprintf(geom, "%dx%d+%d+%d\n", width, height, x, y);
-	size_t len = strlen(geom);
-	if(offset < len){
-		if(offset + size > len)
-			size = len - offset;
-		memcpy(buf, geom + offset, size);
-	}else
-		size = 0;
-	return size;	
+	int wid = get_winid(path);
+	const char *winpath = get_winpath(path);
+	int i;
+	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
+		if(strcmp(winpath, akemi_win_oper[i].path) == 0){
+			return akemi_win_oper[i].read(wid, buf, size, offset);
+		}
+	}
+	return -ENOENT;	
 }
 
 static int akemi_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
-	int wid, width, height, x, y;
-	sscanf((path+3), "%x", &wid);
-	sscanf(buf, "%dx%d+%d+%d", &width, &height, &x, &y);
-	set_geom(wid, width, height, x, y);
-	return size;
+	int wid = get_winid(path);
+	const char *winpath = get_winpath(path);
+	int i;
+	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
+		if(strcmp(winpath, akemi_win_oper[i].path) == 0){
+			return akemi_win_oper[i].write(wid, buf, size, offset);
+		}
+	}
+	return -ENOENT;
 }
 
 static int akemi_truncate(const char *path, off_t size)

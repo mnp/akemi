@@ -1,4 +1,14 @@
 #include "win_oper.h"
+int dir_read(int wid, char *buf, size_t size, off_t offset)
+{
+	return -EISDIR;
+}
+
+int dir_write(int wid, const char *buf, size_t size, off_t offset)
+{
+	return -EISDIR;
+}
+
 static void regdir(struct stat *stbuf)
 {
 	stbuf->st_mode = S_IFDIR | 0700;
@@ -165,6 +175,11 @@ int stack_getattr(int wid, struct stat *stbuf)
 	return 0;
 }
 
+int stack_read(int wid, char *buf, size_t size, off_t offset)
+{
+	return -EACCES;
+}
+
 int stack_write(int wid, const char *buf, size_t size, off_t offset)
 {
 	return 0;
@@ -182,6 +197,11 @@ int title_read(int wid, char *buf, size_t size, off_t offset)
 	return 0;
 }
 
+int title_write(int wid, const char *buf, size_t size, off_t offset)
+{
+	return -EACCES;
+}
+
 int class_getattr(int wid, struct stat *stbuf)
 {
 	stbuf->st_mode= S_IFREG | 0400;
@@ -192,4 +212,9 @@ int class_getattr(int wid, struct stat *stbuf)
 int class_read(int wid, char *buf, size_t size, off_t offset)
 {
 	return 0;
+}
+
+int class_write(int wid, const char *buf, size_t size, off_t offset)
+{
+	return -EACCES;
 }

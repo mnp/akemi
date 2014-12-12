@@ -1,6 +1,10 @@
 #ifndef WIN_OPER_H
 #define WIN_OPER_H
 #include <fuse.h>
+#include <errno.h>
+int dir_read(int wid, char *buf, size_t size, off_t offset);
+int dir_write(int wid, const char *buf, size_t size, off_t offset);
+
 int win_getattr(int wid, struct stat *stbuf);
 
 int border_getattr(int wid, struct stat *stbuf);
@@ -34,11 +38,14 @@ int ignored_read(int wid, char *buf, size_t size, off_t offset);
 int ignored_write(int wid, const char *buf, size_t size, off_t offset);
 
 int stack_getattr(int wid, struct stat *stbuf);
+int stack_read(int wid, char *buf, size_t size, off_t offset);
 int stack_write(int wid, const char *buf, size_t size, off_t offset);
 
 int title_getattr(int wid, struct stat *stbuf);
 int title_read(int wid, char *buf, size_t size, off_t offset);
+int title_write(int wid, const char *buf, size_t size, off_t offset);
 
 int class_getattr(int wid, struct stat *stbuf);
 int class_read(int wid, char *buf, size_t size, off_t offset);
+int class_write(int wid, const char *buf, size_t size, off_t offset);
 #endif
