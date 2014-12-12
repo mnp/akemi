@@ -59,25 +59,6 @@ const char *get_winpath(const char *path)
 	return winpath;
 }
 
-static int valid_path(const char *path)
-{
-	if(strcmp(path, "/") == 0)
-		return 1;
-
-	if(get_winid(path) == -1)
-		return 0;
-
-	const char *winpath = get_winpath(path);
-	int i;
-	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
-		if(strcmp(winpath, akemi_win_oper[i].path) == 0){
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
 static int akemi_getattr(const char *path, struct stat *stbuf)
 {
 	memset(stbuf, 0, sizeof(struct stat));
@@ -106,8 +87,6 @@ static int akemi_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 {
 	(void) offset;
 	(void) fi;
-	if(!valid_path(path))
-		return -ENOENT;
 
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
@@ -133,25 +112,19 @@ static int akemi_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 
 	const char *winpath = get_winpath(path);
 
-	int dir = 0;
 	int i;
 	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
 		if((strncmp(winpath, akemi_win_oper[i].path, strlen(winpath)) == 0) 
 				&& (strlen(akemi_win_oper[i].path) > strlen(winpath))
 				&& (strchr(akemi_win_oper[i].path+strlen(winpath)+1, '/') == NULL)){
-			dir = 1;
 			filler(buf, akemi_win_oper[i].path+strlen(winpath)+1, NULL, 0);
 		}
 	}
-	if(!dir)
-		return -ENOTDIR;
 	return 0;
 }
 
 static int akemi_open(const char *path, struct fuse_file_info *fi)
 {
-	if (strcmp(path+WID_STRING_LENGTH, "/geometry") != 0)
-		return -ENOENT;
 	return 0;
 }
 
