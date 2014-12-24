@@ -8,7 +8,7 @@ OBJ := $(SRC:.c=.o)
 
 all: akemi
 
-%.o: %.c %.h
+%.o: %.c *.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 akemi: $(OBJ)

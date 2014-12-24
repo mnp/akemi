@@ -13,27 +13,27 @@
 
 struct win_oper
 {
-    char *path;
-	int (*getattr)(int wid, struct stat *stbuf);
-    int (*read)(int wid, char *buf, size_t size, off_t offset);
-    int (*write)(int wid, const char *buf, size_t size, off_t offset);
+	char *path;
+	int (*mode)(int wid);
+	char *(*read)(int wid);
+	int (*write)(int wid, const char *buf);
 };
 
 static const struct win_oper akemi_win_oper[] = {
-	{"", win_getattr, dir_read, dir_write},
-	{"/border", border_getattr, dir_read, dir_write},
-		{"/border/color", border_color_getattr, border_color_read, border_color_write},
-		{"/border/width", border_width_getattr, border_width_read, border_width_write},
-	{"/geometry", geometry_getattr, dir_read, dir_write},
-		{"/geometry/width", geometry_width_getattr, geometry_width_read, geometry_width_write},
-		{"/geometry/height", geometry_height_getattr, geometry_height_read, geometry_height_write},
-		{"/geometry/x", geometry_x_getattr, geometry_x_read, geometry_x_write},
-		{"/geometry/y", geometry_y_getattr, geometry_y_read, geometry_y_write},
-	{"/mapstate", mapstate_getattr, mapstate_read, mapstate_write},
-	{"/ignored", ignored_getattr, ignored_read, ignored_write},
-	{"/stack", stack_getattr, stack_read, stack_write},
-	{"/title", title_getattr, title_read, title_write},
-	{"/class", class_getattr, class_read, class_write},
+	{"", win_mode, dir_read, dir_write},
+	{"/border", border_mode, dir_read, dir_write},
+		{"/border/color", border_color_mode, border_color_read, border_color_write},
+		{"/border/width", border_width_mode, border_width_read, border_width_write},
+	{"/geometry", geometry_mode, dir_read, dir_write},
+		{"/geometry/width", geometry_width_mode, geometry_width_read, geometry_width_write},
+		{"/geometry/height", geometry_height_mode, geometry_height_read, geometry_height_write},
+		{"/geometry/x", geometry_x_mode, geometry_x_read, geometry_x_write},
+		{"/geometry/y", geometry_y_mode, geometry_y_read, geometry_y_write},
+	{"/mapstate", mapstate_mode, mapstate_read, mapstate_write},
+	{"/ignored", ignored_mode, ignored_read, ignored_write},
+	{"/stack", stack_mode, stack_read, stack_write},
+	{"/title", title_mode, title_read, title_write},
+	{"/class", class_mode, class_read, class_write},
 };
 
 static int get_winid(const char *path)
@@ -75,10 +75,38 @@ static int akemi_getattr(const char *path, struct stat *stbuf)
 	const char *winpath = get_winpath(path);
 
 	int i;
+	int exists, dir = 0;
+	int index;
 	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
 		if(strcmp(winpath, akemi_win_oper[i].path) == 0){
-			return akemi_win_oper[i].getattr(wid, stbuf);
+			index = i;
+			exists = 1;
 		}
+		if((strncmp(winpath, akemi_win_oper[i].path, strlen(winpath)) == 0)
+				&& (strlen(akemi_win_oper[i].path) > strlen(winpath))
+				&& (strchr(akemi_win_oper[i].path+strlen(winpath)+1, '/') == NULL)
+				&& ((akemi_win_oper[i].path+strlen(winpath))[0] == '/')){
+			dir = 1;
+			break;
+		}
+	}
+	if(exists){
+		if(dir){
+			stbuf->st_mode = S_IFDIR | akemi_win_oper[index].mode(wid);
+			stbuf->st_nlink = 2;
+		}	
+		else{
+			stbuf->st_mode = S_IFREG | akemi_win_oper[index].mode(wid);
+			stbuf->st_nlink = 1;
+			int size = 0;
+			char *read_string = akemi_win_oper[index].read(wid);
+			if((read_string != NULL) && (strcmp(read_string, "") != 0)){
+				size = strlen(read_string);
+				free(read_string);
+			}
+			stbuf->st_size = size;
+		}
+		return 0;
 	}
 	return -ENOENT;
 }
@@ -119,7 +147,8 @@ static int akemi_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 			exists = 1;
 		if((strncmp(winpath, akemi_win_oper[i].path, strlen(winpath)) == 0) 
 				&& (strlen(akemi_win_oper[i].path) > strlen(winpath))
-				&& (strchr(akemi_win_oper[i].path+strlen(winpath)+1, '/') == NULL)){
+				&& (strchr(akemi_win_oper[i].path+strlen(winpath)+1, '/') == NULL)
+				&& ((akemi_win_oper[i].path+strlen(winpath))[0] == '/')){
 			dir = 1;
 			filler(buf, akemi_win_oper[i].path+strlen(winpath)+1, NULL, 0);
 		}
@@ -137,7 +166,15 @@ static int akemi_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 
 static int akemi_open(const char *path, struct fuse_file_info *fi)
 {
-	return 0;
+	const char *winpath = get_winpath(path);
+	int i;
+	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
+		if(strcmp(winpath, akemi_win_oper[i].path) == 0){
+			fi->nonseekable=1;
+			return 0;
+		}
+	}
+	return -ENOENT;
 }
 
 static int akemi_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
@@ -147,10 +184,18 @@ static int akemi_read(const char *path, char *buf, size_t size, off_t offset, st
 	int i;
 	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
 		if(strcmp(winpath, akemi_win_oper[i].path) == 0){
-			return akemi_win_oper[i].read(wid, buf, size, offset);
+			char *read_string = akemi_win_oper[i].read(wid);
+			if(read_string == NULL)
+				return errno;
+			size_t len = strlen(read_string);
+			if(size > len)
+				size = len;
+			memcpy(buf, read_string, size);
+			free(read_string);
+			return size;
 		}
 	}
-	return -ENOENT;	
+	return -ENOENT;
 }
 
 static int akemi_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
@@ -160,7 +205,7 @@ static int akemi_write(const char *path, const char *buf, size_t size, off_t off
 	int i;
 	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
 		if(strcmp(winpath, akemi_win_oper[i].path) == 0){
-			return akemi_win_oper[i].write(wid, buf, size, offset);
+			return akemi_win_oper[i].write(wid, buf);
 		}
 	}
 	return -ENOENT;
