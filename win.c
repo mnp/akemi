@@ -54,6 +54,13 @@ int get_width(int wid)
 	return width;
 }
 
+void set_width(int wid, int width)
+{
+	uint32_t values[] = {width};
+	xcb_configure_window(conn, wid, XCB_CONFIG_WINDOW_WIDTH, values);
+	xcb_flush(conn);
+}
+
 int get_height(int wid)
 {
 	xcb_get_geometry_reply_t *geom_r = get_geom(wid);
@@ -63,6 +70,13 @@ int get_height(int wid)
 	int height = geom_r->height;
 	free(geom_r);
 	return height;
+}
+
+void set_height(int wid, int height)
+{
+	uint32_t values[] = {height};
+	xcb_configure_window(conn, wid, XCB_CONFIG_WINDOW_HEIGHT, values);
+	xcb_flush(conn);
 }
 
 int get_x(int wid)
@@ -76,6 +90,13 @@ int get_x(int wid)
 	return x;
 }
 
+void set_x(int wid, int x)
+{
+	uint32_t values[] = {x};
+	xcb_configure_window(conn, wid, XCB_CONFIG_WINDOW_X, values);
+	xcb_flush(conn);
+}
+
 int get_y(int wid)
 {
 	xcb_get_geometry_reply_t *geom_r = get_geom(wid);
@@ -85,6 +106,13 @@ int get_y(int wid)
 	int y = geom_r->y;
 	free(geom_r);
 	return y;
+}
+
+void set_y(int wid, int y)
+{
+	uint32_t values[] = {y};
+	xcb_configure_window(conn, wid, XCB_CONFIG_WINDOW_Y, values);
+	xcb_flush(conn);
 }
 
 int get_border_width(int wid)
@@ -98,7 +126,21 @@ int get_border_width(int wid)
 	return bw;
 }
 
-int get_map_state(int wid)
+void set_border_width(int wid, int width)
+{
+	uint32_t values[] = {width};
+	xcb_configure_window(conn, wid, XCB_CONFIG_WINDOW_BORDER_WIDTH, values);
+	xcb_flush(conn);
+}
+
+void set_border_color(int wid, int color)
+{
+	uint32_t values[] = {color};
+	xcb_change_window_attributes(conn, wid, XCB_CW_BORDER_PIXEL, values);
+	xcb_flush(conn);
+}
+
+int get_mapped(int wid)
 {
 	xcb_get_window_attributes_reply_t *attr_r = get_attr(wid);
 	if(attr_r == NULL)
@@ -106,17 +148,19 @@ int get_map_state(int wid)
 
 	int map_state = attr_r->map_state;
 	free(attr_r);
-
-	switch(map_state)
-{
-		case XCB_MAP_STATE_UNMAPPED:
-			return UNMAPPED;
-		case XCB_MAP_STATE_UNVIEWABLE:
-			return UNVIEWABLE;
-		case XCB_MAP_STATE_VIEWABLE:
-			return VIEWABLE;
+	if(map_state == XCB_MAP_STATE_VIEWABLE){
+		return 1;
 	}
-	return -1;
+	return 0;
+}
+
+void set_mapped(int wid, int mapstate)
+{
+	if(mapstate)
+		xcb_map_window(conn, wid);
+	else
+		xcb_unmap_window(conn, wid);
+	xcb_flush(conn);
 }
 
 int get_ignored(int wid)
@@ -128,6 +172,12 @@ int get_ignored(int wid)
 	int or = attr_r->override_redirect;
 	free(attr_r);
 	return or;
+}
+
+void set_ignored(int wid, int ignore)
+{
+	uint32_t values[] = {ignore};
+	xcb_change_window_attributes(conn, wid, XCB_CW_OVERRIDE_REDIRECT, values);
 }
 
 int exists(int wid)
@@ -197,6 +247,26 @@ int *list_windows()
 	free(tree_r);
 	win_list[i] = 0;
 	return win_list;
+}
+
+void kill_win(int wid)
+{
+	xcb_kill_client(conn, wid);	
+	xcb_flush(conn);
+}
+
+void raise(int wid)
+{
+	uint32_t values[] = {XCB_STACK_MODE_ABOVE};
+	xcb_configure_window(conn, wid, XCB_CONFIG_WINDOW_STACK_MODE, values);
+	xcb_flush(conn);
+}
+
+void lower(int wid)
+{
+	uint32_t values[] = {XCB_STACK_MODE_BELOW};
+	xcb_configure_window(conn, wid, XCB_CONFIG_WINDOW_STACK_MODE, values);
+	xcb_flush(conn);
 }
 
 void xcb_init()

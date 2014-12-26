@@ -29,7 +29,7 @@ static const struct win_oper akemi_win_oper[] = {
 		{"/geometry/height", geometry_height_mode, geometry_height_read, geometry_height_write},
 		{"/geometry/x", geometry_x_mode, geometry_x_read, geometry_x_write},
 		{"/geometry/y", geometry_y_mode, geometry_y_read, geometry_y_write},
-	{"/mapstate", mapstate_mode, mapstate_read, mapstate_write},
+	{"/mapped", mapped_mode, mapped_read, mapped_write},
 	{"/ignored", ignored_mode, ignored_read, ignored_write},
 	{"/stack", stack_mode, stack_read, stack_write},
 	{"/title", title_mode, title_read, title_write},
@@ -166,6 +166,8 @@ static int akemi_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 
 static int akemi_open(const char *path, struct fuse_file_info *fi)
 {
+	if(!exists(get_winid(path)))
+		return -ENOENT;
 	const char *winpath = get_winpath(path);
 	int i;
 	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
@@ -180,6 +182,8 @@ static int akemi_open(const char *path, struct fuse_file_info *fi)
 static int akemi_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
 	int wid = get_winid(path);
+	if(!exists(wid))
+		return -ENOENT;
 	const char *winpath = get_winpath(path);
 	int i;
 	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
@@ -201,11 +205,17 @@ static int akemi_read(const char *path, char *buf, size_t size, off_t offset, st
 static int akemi_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
 	int wid = get_winid(path);
+	if(!exists(wid))
+		return -ENOENT;
 	const char *winpath = get_winpath(path);
 	int i;
 	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
 		if(strcmp(winpath, akemi_win_oper[i].path) == 0){
-			return akemi_win_oper[i].write(wid, buf);
+			char *write_buf = malloc(size+1);
+			sprintf(write_buf, "%.*s", (int) size, buf);
+			int status = akemi_win_oper[i].write(wid, write_buf);
+			free(write_buf);
+			return status;
 		}
 	}
 	return -ENOENT;
@@ -216,6 +226,20 @@ static int akemi_truncate(const char *path, off_t size)
 	return 0;
 }
 
+static int akemi_rmdir(const char *path)
+{
+	if(strcmp(path, "/") == 0)
+		return -EACCES;
+	int wid = get_winid(path);
+	if(!exists(wid))
+		return -ENOENT;
+	if(strchr(path+1, '/') == NULL){
+		kill_win(wid);
+		return 0;
+	}
+	return -EACCES;
+}
+
 static struct fuse_operations akemi_oper = {
 	.destroy = akemi_cleanup,
 	.truncate = akemi_truncate,
@@ -224,6 +248,8 @@ static struct fuse_operations akemi_oper = {
 	.open = akemi_open,
 	.read = akemi_read,
 	.write = akemi_write,
+	.rmdir = akemi_rmdir,
+	.readlink = akemi_readlink,
 };
 
 int fuse_init(int argc, char **argv)

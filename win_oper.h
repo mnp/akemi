@@ -29,9 +29,9 @@ int geometry_y_mode(int wid);
 char *geometry_y_read(int wid);
 int geometry_y_write(int wid, const char *buf);
 
-int mapstate_mode(int wid);
-char *mapstate_read(int wid);
-int mapstate_write(int wid, const char *buf);
+int mapped_mode(int wid);
+char *mapped_read(int wid);
+int mapped_write(int wid, const char *buf);
 
 int ignored_mode(int wid);
 char *ignored_read(int wid);
