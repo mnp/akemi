@@ -1,4 +1,5 @@
 CC=cc
+PREFIX?=/usr
 LD=$(CC)
 LIBS=`pkg-config fuse --libs` `pkg-config xcb --libs`
 CFLAGS=-Wall -c `pkg-config fuse --cflags` `pkg-config xcb --cflags`
@@ -13,6 +14,12 @@ all: akemi
 
 akemi: $(OBJ)
 	$(LD) $(LIBS) $(OBJ) -o $@
+
+install: akemi
+	cp akemi /usr/bin/
+
+uninstall: 
+	rm $(PREFIX)/bin/akemi
 
 clean:
 	rm *.o

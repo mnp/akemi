@@ -42,9 +42,6 @@ static int get_winid(const char *path)
 	if(strncmp(path, "/0x", 3) == 0)
 		sscanf(path, "/0x%08x", &wid);
 
-	if(strncmp(path, "/focused", 8) == 0)
-		wid = focused();
-
 	if(!exists(wid))
 		return -1;
 
@@ -64,6 +61,12 @@ static int akemi_getattr(const char *path, struct stat *stbuf)
 	memset(stbuf, 0, sizeof(struct stat));
 	if(strcmp(path, "/") == 0){
 		stbuf->st_mode = S_IFDIR | 0700;
+		stbuf->st_nlink = 2;
+		return 0;
+	}
+
+	if(strcmp(path, "/focused") == 0){
+		stbuf->st_mode = S_IFLNK | 0700;
 		stbuf->st_nlink = 2;
 		return 0;
 	}
@@ -238,6 +241,15 @@ static int akemi_rmdir(const char *path)
 		return 0;
 	}
 	return -EACCES;
+}
+
+int akemi_readlink(const char *path, char *buf, size_t size)
+{
+	if(strcmp(path, "/focused") == 0){
+		sprintf(buf, "0x%08x", focused());
+		return 0;
+	}
+	return -1;
 }
 
 static struct fuse_operations akemi_oper = {
