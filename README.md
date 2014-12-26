@@ -1,6 +1,6 @@
 Akemi X window virtual filesystem
 ===
-Akemi is the cutest X windows manipulation too around!
+Akemi is the cutest X windows manipulation tool around!
 Akemi creates a virtual filesystem to represent currently open windows, similar to what /proc does for processes. This allows you to arrange them using any language you like, in a true unix fashion.
 
 Build:
