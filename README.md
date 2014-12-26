@@ -14,5 +14,5 @@ See the wiki (http://github.com/QBCO/akemi/wiki) for more information.
 	
 Thanks to:
 ---
-Kori (http://github.com/kori) for suggesting the idea
+Kori (http://github.com/kori) for suggesting the idea  
 The creators of wmutils (http://github.com/wmutils/core) for providing some inspiration, and some basic xcb code to study.
