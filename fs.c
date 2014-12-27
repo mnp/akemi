@@ -78,7 +78,8 @@ static int akemi_getattr(const char *path, struct stat *stbuf)
 	const char *winpath = get_winpath(path);
 
 	int i;
-	int exists, dir = 0;
+	int exists = 0;
+	int dir = 0;
 	int index;
 	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
 		if(strcmp(winpath, akemi_win_oper[i].path) == 0){
@@ -97,7 +98,7 @@ static int akemi_getattr(const char *path, struct stat *stbuf)
 		if(dir){
 			stbuf->st_mode = S_IFDIR | akemi_win_oper[index].mode(wid);
 			stbuf->st_nlink = 2;
-		}	
+		}
 		else{
 			stbuf->st_mode = S_IFREG | akemi_win_oper[index].mode(wid);
 			stbuf->st_nlink = 1;
@@ -133,7 +134,7 @@ static int akemi_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 			win_string = malloc(sizeof(char)*(WID_STRING_LENGTH));
 
 			sprintf(win_string, "0x%08x", win);
-			filler(buf, win_string, NULL, 0); 
+			filler(buf, win_string, NULL, 0);
 
 			free(win_string);
 		}
@@ -142,13 +143,13 @@ static int akemi_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 	}
 
 	const char *winpath = get_winpath(path);
-	
+
 	int exists, dir = 0;
 	int i;
 	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
 		if(strcmp(winpath, akemi_win_oper[i].path) == 0)
 			exists = 1;
-		if((strncmp(winpath, akemi_win_oper[i].path, strlen(winpath)) == 0) 
+		if((strncmp(winpath, akemi_win_oper[i].path, strlen(winpath)) == 0)
 				&& (strlen(akemi_win_oper[i].path) > strlen(winpath))
 				&& (strchr(akemi_win_oper[i].path+strlen(winpath)+1, '/') == NULL)
 				&& ((akemi_win_oper[i].path+strlen(winpath))[0] == '/')){
