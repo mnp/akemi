@@ -197,7 +197,7 @@ char *get_title(int wid)
 	xcb_get_property_reply_t *prop_r = get_prop(wid, XCB_ATOM_WM_NAME, XCB_ATOM_STRING);
 	if(prop_r == NULL)
 		return NULL;
-	
+
 	char *title = (char *) xcb_get_property_value(prop_r);
 	int len = xcb_get_property_value_length(prop_r);
 	char *title_string=malloc(len+1);
@@ -210,10 +210,12 @@ char **get_class(int wid)
 {
 	char **classes = malloc(sizeof(char*)*2);
 	xcb_get_property_reply_t *prop_r = get_prop(wid, XCB_ATOM_WM_CLASS, XCB_ATOM_STRING);
-	if(prop_r == NULL)
+	if(prop_r == NULL) {
+		free(classes);
 		return NULL;
+	}
 
-	char *class; 
+	char *class;
 	class=(char *) xcb_get_property_value(prop_r);
 	classes[0]=strdup(class);
 	classes[1]=strdup(class+strlen(class)+1);
@@ -251,7 +253,7 @@ int *list_windows()
 
 void kill_win(int wid)
 {
-	xcb_kill_client(conn, wid);	
+	xcb_kill_client(conn, wid);
 	xcb_flush(conn);
 }
 
