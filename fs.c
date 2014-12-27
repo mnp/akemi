@@ -144,7 +144,8 @@ static int akemi_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 
 	const char *winpath = get_winpath(path);
 
-	int exists, dir = 0;
+	int exists = 0;
+	int dir = 0;
 	int i;
 	for(i=0;i<sizeof(akemi_win_oper)/sizeof(struct win_oper); i++){
 		if(strcmp(winpath, akemi_win_oper[i].path) == 0)
