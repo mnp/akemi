@@ -8,6 +8,10 @@ Build:
 After installing the relevant developement packages for fuse and xcb for your distro, akemi can be built using the make command.
 Installation can be done by invoking make install.
 
+### Ubuntu 14.04 dependencies
+
+    sudo apt-get install libxcb1-dev libfuse-dev
+
 Usage:
 ---
 See the wiki (http://github.com/QBCO/akemi/wiki) for more information.

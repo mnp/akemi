@@ -13,7 +13,7 @@ all: akemi
 	$(CC) $(CFLAGS) -o $@ $<
 
 akemi: $(OBJ)
-	$(LD) $(LIBS) $(OBJ) -o $@
+	$(LD) $(OBJ) $(LIBS) -o $@
 
 install: akemi
 	cp akemi /usr/bin/
